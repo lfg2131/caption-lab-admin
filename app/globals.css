@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+:root {
+  --background: #09090d;
+  --surface: #13131a;
+  --surface-raised: #1b1b25;
+  --border: #2a2a38;
+  --foreground: #f5f5f7;
+  --muted: #a4a4b8;
+  --brand: #8b5cf6;
+  --brand-soft: #c4b5fd;
+  --funny: #c8f542;
+  --danger: #fca5a5;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--border);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-funny: var(--funny);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@utility btn {
+  @apply inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl px-5 py-3 text-base font-semibold transition select-none disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+@layer components {
+  .btn-primary {
+    @apply btn bg-white text-zinc-950 hover:bg-zinc-200;
+  }
+  .btn-brand {
+    @apply btn bg-brand text-white shadow-lg shadow-violet-950/40 hover:bg-violet-600;
+  }
+  .btn-funny {
+    @apply btn bg-funny text-zinc-950 hover:bg-lime-300;
+  }
+  .btn-quiet {
+    @apply btn border border-line bg-surface-raised text-foreground hover:border-zinc-500 hover:bg-zinc-800;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-11 cursor-pointer items-center rounded-xl px-3 py-2 text-sm font-medium text-muted transition hover:bg-white/5 hover:text-foreground;
+  }
+  .chip {
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-muted transition hover:border-zinc-500 hover:text-foreground;
+  }
+  .card {
+    @apply overflow-hidden rounded-3xl border border-line bg-surface shadow-2xl shadow-black/50;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold tracking-[0.18em] text-brand-soft uppercase;
+  }
+  .field {
+    @apply block w-full rounded-2xl border border-line bg-surface px-4 py-3 text-base text-foreground placeholder:text-zinc-500 focus:border-brand-soft disabled:opacity-60;
+  }
+  .alert-error {
+    @apply rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100;
+  }
+  .alert-success {
+    @apply rounded-2xl border border-lime-300/40 bg-lime-300/10 px-4 py-3 text-sm text-lime-100;
+  }
+  .segment {
+    @apply flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-0.5 rounded-xl px-3 py-2.5 text-center text-muted transition hover:bg-white/5 hover:text-foreground;
+  }
+}
+
+/* Visible, high-contrast focus for keyboard users on every control. */
+:focus-visible {
+  outline: 3px solid var(--funny);
+  outline-offset: 3px;
+}
+
+/* Tone chips are visually hidden radios; mirror their focus and checked state. */
+.tone-input:focus-visible + .chip {
+  outline: 3px solid var(--funny);
+  outline-offset: 3px;
+}
+.tone-input:checked + .chip {
+  @apply border-brand-soft bg-brand/20 text-white;
+}
+
+/* Perspective is a two-option segmented control built the same way. */
+.segment-input:focus-visible + .segment {
+  outline: 3px solid var(--funny);
+  outline-offset: 2px;
+}
+.segment-input:checked + .segment {
+  @apply bg-white text-zinc-950 shadow-sm;
+}
+.segment-input:checked + .segment .segment-hint {
+  @apply text-zinc-600;
+}
+.tone-input:disabled + .chip,
+.segment-input:disabled + .segment {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.hero-scrim {
+  background: linear-gradient(180deg, rgba(9, 9, 13, 0) 35%, rgba(9, 9, 13, 0.85) 80%, #09090d 100%);
+}
+
+@keyframes stamp-in {
+  from { opacity: 0; transform: scale(0.85) rotate(-6deg); }
+  to { opacity: 1; transform: scale(1) rotate(-6deg); }
+}
+.vote-stamp {
+  animation: stamp-in 180ms ease-out both;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  animation: card-in 220ms ease-out both;
+}
+
+.toast {
+  animation: card-in 200ms ease-out both;
+}
+
+/* A just-generated caption linked from the notification. */
+.card-new {
+  @apply ring-2 ring-funny/70;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vote-stamp, .card-enter, .toast { animation: none; }
+  * { transition-duration: 0ms !important; }
+}
+
+/* Admin tables: readable rows, recessive grid. */
+.admin-table {
+  @apply w-full text-left text-sm;
+}
+.admin-table th {
+  @apply border-b border-line px-4 py-3 text-xs font-semibold tracking-wide text-muted uppercase;
+}
+.admin-table td {
+  @apply border-b border-line/60 px-4 py-3 align-top;
+}
+.admin-table tbody tr:last-child td {
+  @apply border-b-0;
+}
+.admin-table tbody tr:hover {
+  @apply bg-white/[0.02];
+}
