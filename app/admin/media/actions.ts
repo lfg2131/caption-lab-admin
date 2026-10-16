@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { AdminAccessError, assertAdmin } from "@/lib/auth";
 import {
   CAPTION_COUNT,
@@ -155,11 +156,12 @@ export async function deleteCaption(_prev: ActionState, form: FormData): Promise
     .from("ai_captions")
     .select("id", { count: "exact", head: true })
     .eq("source_image_path", row.source_image_path);
-  let image = "The photo is kept because other captions use it.";
+  let photo = "kept";
   if (!usageError && remaining === 0) {
     const { error: removeError } = await db.storage.from(MEDIA_BUCKET).remove([row.source_image_path]);
-    image = removeError ? "The photo couldn’t be removed from storage." : "Its photo was no longer used and was removed.";
+    photo = removeError ? "unknown" : "removed";
   }
   refresh();
-  return { status: "ok", message: `Deleted the caption and ${votes ?? 0} vote${votes === 1 ? "" : "s"}. ${image}`, id };
+  // The deleted row's card unmounts, so the outcome is shown at page level.
+  redirect(`/admin/media?deleted=1&votes=${votes ?? 0}&photo=${photo}`);
 }

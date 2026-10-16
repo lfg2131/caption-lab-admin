@@ -120,3 +120,23 @@ test("data helpers: daily buckets in New York time, pagination, search", () => {
   assert.ok(data.matchesSearch(["Sam", null], "sa"));
   assert.ok(!data.matchesSearch(["Sam"], "zz"));
 });
+
+test("Media shows a page-level delete confirmation built from validated values only", async () => {
+  const html = await render("app/admin/media/page.tsx", { searchParams: { deleted: "1", votes: "3", photo: "removed" } }).html();
+  assert.match(html, /Caption deleted, along with its 3 votes\. Its photo was no longer used and was removed from storage\./);
+  const odd = await render("app/admin/media/page.tsx", { searchParams: { deleted: "1", votes: "<script>", photo: "<b>x</b>" } }).html();
+  const notice = odd.match(/<p role="status" class="alert-success">([^<]*)<\/p>/)[1];
+  assert.equal(notice, "Caption deleted, along with its 0 votes.");
+  assert.doesNotMatch(odd, /&lt;script&gt;|&lt;b&gt;x|<b>x/);
+  assert.doesNotMatch(await render("app/admin/media/page.tsx").html(), /Caption deleted/);
+});
+
+test("Caption editor is fully controlled and restarts from the saved row after each save", () => {
+  const { CaptionEditor } = loadModule("app/admin/media/caption-editor.tsx", { ...ui, "./actions": { updateCaption: async () => ({}) } });
+  const html = renderToStaticMarkup(React.createElement(CaptionEditor, { id: CAPTION, caption: "Saved text", perspective: "student", tone: "dry" }));
+  assert.match(html, /<option value="student" selected="">/);
+  assert.match(html, /<option value="dry" selected="">/);
+  assert.doesNotMatch(html, /defaultValue/);
+  const page = require("node:fs").readFileSync("app/admin/media/page.tsx", "utf8");
+  assert.match(page, /<CaptionEditor key=\{`\$\{row\.caption\}\|\$\{row\.perspective\}\|\$\{row\.tone\}`\}/);
+});

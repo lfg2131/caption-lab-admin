@@ -18,6 +18,7 @@ export default async function MediaPage({ searchParams }: PageProps<"/admin/medi
   const params = await searchParams;
   const query = param(params.q).slice(0, 100);
   const { rows, total, page, pages } = await loadMedia(db, { query, page: Number(param(params.page)) || 1 });
+  const deleted = deletedNotice(params);
 
   return (
     <div className="space-y-6">
@@ -33,6 +34,8 @@ export default async function MediaPage({ searchParams }: PageProps<"/admin/medi
           <button className="btn-quiet min-h-11 py-2" type="submit">Search</button>
         </form>
       </header>
+
+      {deleted && <p role="status" className="alert-success">{deleted}</p>}
 
       <CreateCaption />
 
@@ -67,7 +70,8 @@ export default async function MediaPage({ searchParams }: PageProps<"/admin/medi
               <details className="rounded-2xl border border-line text-sm">
                 <summary className="cursor-pointer px-4 py-2.5 font-medium">Edit</summary>
                 <div className="px-4 pb-4">
-                  <CaptionEditor id={row.id} caption={row.caption} perspective={row.perspective} tone={row.tone} />
+                  {/* Keyed on the saved values: after any save the editor restarts from the database row. */}
+                  <CaptionEditor key={`${row.caption}|${row.perspective}|${row.tone}`} id={row.id} caption={row.caption} perspective={row.perspective} tone={row.tone} />
                 </div>
               </details>
               <DeleteCaption id={row.id} votes={row.funny + row.notFunny} imageShared={row.imageShared} />
@@ -78,4 +82,14 @@ export default async function MediaPage({ searchParams }: PageProps<"/admin/medi
       </ul>
     </div>
   );
+}
+
+/** Fixed wording only; the query values are validated, never echoed. */
+function deletedNotice(params: Record<string, string | string[] | undefined>) {
+  if (param(params.deleted) !== "1") return null;
+  const votes = Number.parseInt(param(params.votes), 10);
+  const count = Number.isSafeInteger(votes) && votes >= 0 && votes < 1_000_000 ? votes : 0;
+  const photo = param(params.photo);
+  const image = photo === "removed" ? "Its photo was no longer used and was removed from storage." : photo === "kept" ? "The photo was kept because other captions still use it." : "";
+  return `Caption deleted, along with its ${count} vote${count === 1 ? "" : "s"}. ${image}`.trim();
 }

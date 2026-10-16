@@ -151,9 +151,8 @@ function deleteScenario(remainingUses) {
 
 test("deleteCaption deletes the row (votes cascade) and keeps a photo other captions still use", async () => {
   const t = deleteScenario(2);
-  const result = await t.actions.deleteCaption(IDLE, form({ id: CAPTION }));
-  assert.equal(result.status, "ok");
-  assert.match(result.message, /Deleted the caption and 3 votes\. The photo is kept/);
+  // Success reports at page level: the deleted row's card no longer exists.
+  await assert.rejects(t.actions.deleteCaption(IDLE, form({ id: CAPTION })), /REDIRECT:\/admin\/media\?deleted=1&votes=3&photo=kept$/);
   assert.deepEqual(plain(t.db.calls.filter((c) => c[0] === "ai_captions" && c[1] === "eq")[1]), ["ai_captions", "eq", "id", CAPTION]);
   assert.ok(t.db.calls.some((c) => c[0] === "ai_captions" && c[1] === "delete"));
   assert.ok(!t.db.calls.some((c) => c[0] === "storage"), "shared photo untouched");
@@ -162,8 +161,7 @@ test("deleteCaption deletes the row (votes cascade) and keeps a photo other capt
 
 test("deleteCaption removes the photo only when nothing references it any more", async () => {
   const t = deleteScenario(0);
-  const result = await t.actions.deleteCaption(IDLE, form({ id: CAPTION }));
-  assert.match(result.message, /no longer used and was removed/);
+  await assert.rejects(t.actions.deleteCaption(IDLE, form({ id: CAPTION })), /REDIRECT:\/admin\/media\?deleted=1&votes=3&photo=removed$/);
   assert.deepEqual(plain(t.db.calls.find((c) => c[0] === "storage")), ["storage", "remove", "week4-media", [PATH]]);
 });
 

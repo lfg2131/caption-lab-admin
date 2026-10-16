@@ -9,7 +9,11 @@ const IDLE: ActionState = { status: "idle", message: "" };
 /** Edit caption text, perspective, and tone. The server re-validates everything. */
 export function CaptionEditor({ id, caption, perspective, tone }: { id: string; caption: string; perspective: string; tone: string | null }) {
   const [state, action, pending] = useActionState(updateCaption, IDLE);
+  // All fields are controlled, so the form always shows what will be saved,
+  // including after a save (React resets uncontrolled fields to stale defaults).
   const [text, setText] = useState(caption);
+  const [voice, setVoice] = useState(perspective);
+  const [mood, setMood] = useState(tone ?? "");
   const words = countWords(text);
   const tooLong = words > MAX_CAPTION_WORDS;
 
@@ -26,13 +30,13 @@ export function CaptionEditor({ id, caption, perspective, tone }: { id: string; 
       <div className="flex flex-wrap items-end gap-2">
         <label className="space-y-1.5 text-sm">
           <span className="font-medium">Perspective</span>
-          <select name="perspective" defaultValue={perspective} className="field py-2 capitalize">
+          <select name="perspective" value={voice} onChange={(event) => setVoice(event.target.value)} className="field py-2 capitalize">
             {PERSPECTIVES.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </label>
         <label className="space-y-1.5 text-sm">
           <span className="font-medium">Tone</span>
-          <select name="tone" defaultValue={tone ?? ""} className="field py-2 capitalize">
+          <select name="tone" value={mood} onChange={(event) => setMood(event.target.value)} className="field py-2 capitalize">
             <option value="">None</option>
             {TONES.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
