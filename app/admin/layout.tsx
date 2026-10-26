@@ -14,10 +14,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <Link href="/admin" className="shrink-0 rounded-xl py-1" aria-label="Admin overview">
             <BrandMark compact />
           </Link>
-          <div className="order-3 w-full sm:order-none sm:mx-auto sm:w-auto">
-            <AdminNav />
-          </div>
-          <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          <div className="ml-auto flex items-center gap-2">
             <span className="hidden max-w-48 truncate text-sm text-muted lg:inline" title={user.email ?? undefined}>{user.email}</span>
             <form action={signOut}>
               <button className="btn-ghost" type="submit">Sign out</button>
@@ -25,7 +22,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-16 sm:px-6 sm:pt-10">{children}</main>
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[190px_minmax(0,1fr)]"><aside><details className="card p-3 lg:hidden"><summary className="cursor-pointer text-sm font-semibold">Admin navigation</summary><div className="mt-4"><AdminNav /></div></details><div className="hidden lg:block"><AdminNav /></div></aside><main className="min-w-0 pb-12">{children}</main></div>
     </div>
   );
 }

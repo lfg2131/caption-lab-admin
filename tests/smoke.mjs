@@ -19,7 +19,7 @@ test("the login page is public and shows no administrative data", async () => {
   assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
 });
 
-for (const path of ["/", "/admin", "/admin/users", "/admin/media", "/admin/votes", "/admin/media?q=a", "/denied"]) {
+for (const path of ["/", "/admin", "/admin/users", "/admin/media", "/admin/votes", "/admin/chains", "/admin/steps", "/admin/mix", "/admin/terms", "/admin/examples", "/admin/models", "/admin/providers", "/admin/signup-domains", "/admin/whitelist", "/admin/requests", "/admin/responses", "/admin/images", "/admin/images/44444444-4444-4444-8444-444444444444", "/admin/terms/44444444-4444-4444-8444-444444444444", "/admin/media?q=a", "/denied"]) {
   test(`signed out ${path} reveals nothing and redirects to /login`, async () => {
     const response = await request(path);
     assert.ok([303, 307, 308].includes(response.status), `${path} ${response.status}`);
@@ -40,7 +40,7 @@ test("signed-out calls to every real admin Server Action are refused", async (t)
   const manifestPath = ".next/server/server-reference-manifest.json";
   if (!existsSync(manifestPath) || process.env.TEST_ORIGIN) return t.skip("needs the local build's action ids");
   const actions = Object.entries(JSON.parse(readFileSync(manifestPath, "utf8")).node);
-  assert.equal(actions.length, 5);
+  assert.ok(actions.length >= 12);
   for (const [id, entry] of actions) {
     const response = await request("/admin/media", {
       method: "POST",

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { requireAdmin } from "@/lib/auth";
@@ -60,6 +61,7 @@ export default async function MediaPage({ searchParams }: PageProps<"/admin/medi
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                 <div className="flex gap-2"><dt className="text-muted">Creator</dt><dd className="truncate">{personLabel(row.creator, row.creator_id)}{row.creator?.email && row.creator.name ? ` (${row.creator.email})` : ""}</dd></div>
                 <div className="flex gap-2"><dt className="text-muted">Created</dt><dd>{formatDateTime(row.created_at)}</dd></div>
+                <div className="flex gap-2"><dt className="text-muted">Execution</dt><dd>{row.generation_request_id ? <Link className="text-brand-soft underline" href={`/admin/requests/${row.generation_request_id}`}>Tracked request →</Link> : "Legacy caption · no request telemetry"}</dd></div>
                 <div className="flex gap-2"><dt className="text-muted">Model</dt><dd className="font-mono text-xs leading-5">{row.model}</dd></div>
                 <div className="flex gap-2"><dt className="text-muted">Context</dt><dd className="truncate">{row.user_context ?? "—"}</dd></div>
               </dl>

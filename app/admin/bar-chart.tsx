@@ -27,7 +27,7 @@ export function DailyBarChart({ title, unit, points, color = "#8b5cf6" }: { titl
         <span className="font-semibold">{title}</span>
         <span className="text-sm text-muted">{total} in {points.length} days</span>
       </figcaption>
-      <div className="relative" aria-hidden="true">
+      <div className="relative" role="group" aria-label={`${title}, daily counts`}>
         <div className="absolute inset-x-0 top-0 border-t border-dashed border-line" />
         <span className="absolute -top-2.5 right-0 bg-surface pl-1 text-[11px] text-muted">{max}</span>
         <div className="flex h-36 items-end gap-0.5 border-b border-line" onMouseLeave={() => setActive(null)}>
@@ -36,6 +36,8 @@ export function DailyBarChart({ title, unit, points, color = "#8b5cf6" }: { titl
               key={point.day}
               className="group relative flex h-full flex-1 items-end justify-center outline-none"
               tabIndex={0}
+              role="img"
+              aria-label={`${dayLabel(point.day, "long")}: ${point.value} ${unit}`}
               onMouseEnter={() => setActive(index)}
               onFocus={() => setActive(index)}
               onBlur={() => setActive(null)}

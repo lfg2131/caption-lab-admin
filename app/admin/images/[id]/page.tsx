@@ -1,0 +1,14 @@
+import Image from "next/image";
+import Link from "next/link";
+import {notFound} from "next/navigation";
+import {requireAdmin} from "@/lib/auth";
+import {MEDIA_BUCKET,isUuid} from "@/lib/captions/validation";
+import {ImageEdit,ImageDelete} from "../image-forms";
+export default async function ImageDetail({params}:{params:Promise<{id:string}>}){
+ const { db } = await requireAdmin();
+ const {id}=await params;if(!isUuid(id))notFound();
+ const {data:row,error}=await db.from("caption_lab_images").select("id,storage_path,title,alt_text,owner_id,mime_type,size_bytes,state,created_at").eq("id",id).maybeSingle();if(error)throw new Error("Could not load image.");if(!row)return <div className="space-y-4"><p role="status">Image no longer exists.</p><Link href="/admin/images" className="text-brand-soft underline">Back to Images</Link></div>;
+ const [signed,captions,requests]=await Promise.all([db.storage.from(MEDIA_BUCKET).createSignedUrl(row.storage_path,1800),db.from("ai_captions").select("id,caption",{count:"exact"}).eq("source_image_path",row.storage_path).limit(20),db.from("caption_lab_requests").select("id,status,created_at",{count:"exact"}).eq("image_id",id).limit(20)]);
+ if(captions.error||requests.error)throw new Error("Could not check image dependencies.");const used=(captions.count??0)+(requests.count??0)>0;
+ return <div className="space-y-5"><Link className="text-brand-soft underline" href="/admin/images">← Images</Link><h1 className="text-2xl font-bold break-words">{row.title||row.id}</h1>{signed.data?.signedUrl?<Image src={signed.data.signedUrl} alt={row.alt_text||"Uploaded photo"} width={800} height={500} unoptimized className="max-h-96 w-full rounded-2xl object-contain"/>:<p role="status">Preview unavailable. Storage file may have been removed.</p>}<dl className="card grid gap-3 p-5 text-sm">{Object.entries(row).map(([key,value])=><div key={key}><dt className="text-muted">{key.replaceAll("_"," ")}</dt><dd className="break-all">{String(value??"Unknown")}</dd></div>)}</dl><section className="card space-y-2 p-5"><h2 className="font-semibold">Dependencies</h2><p>{captions.count??0} captions · {requests.count??0} generation requests</p><ul>{captions.data?.map(c=><li key={c.id}><Link className="text-brand-soft underline" href={`/admin/media?q=${encodeURIComponent(c.caption)}`}>{c.caption}</Link></li>)}{requests.data?.map(q=><li key={q.id}><Link className="text-brand-soft underline" href={`/admin/requests/${q.id}`}>Request {q.id} · {q.status}</Link></li>)}</ul>{(captions.count??0)>20||(requests.count??0)>20?<p className="text-xs text-muted">First 20 dependencies of each type shown; totals include all records.</p>:null}</section><ImageEdit key={`${row.title}|${row.alt_text}`} id={id} title={row.title} alt={row.alt_text}/><ImageDelete id={id} used={used}/></div>;
+}

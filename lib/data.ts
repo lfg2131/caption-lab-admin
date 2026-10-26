@@ -1,4 +1,6 @@
 import "server-only";
+import { loadActivity } from "./activity";
+import { allRows } from "./admin-records";
 import type { PrivilegedClient } from "./supabase/privileged";
 import { MEDIA_BUCKET } from "./captions/validation";
 
@@ -16,9 +18,14 @@ export type Person = { id: string; email: string | null; name: string | null; pr
 
 /** Auth users (email, provider, dates) as a lookup. A class-sized project fits in one page. */
 export async function loadPeople(db: PrivilegedClient): Promise<Map<string, Person>> {
-  const { data, error } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (error) throw new Error("Failed to load users");
-  return new Map(data.users.map((user) => [user.id, {
+  const users = [];
+  for (let page=1;;page++) {
+    const {data,error}=await db.auth.admin.listUsers({page,perPage:1000});
+    if(error)throw new Error("Failed to load users");
+    users.push(...data.users);
+    if(data.users.length<1000)break;
+  }
+  return new Map(users.map((user) => [user.id, {
     id: user.id,
     email: user.email ?? null,
     name: (user.user_metadata?.full_name as string | undefined) ?? (user.user_metadata?.name as string | undefined) ?? null,
@@ -43,7 +50,9 @@ export function nyDay(iso: string | Date) {
 export function bucketByDay(captions: string[], votes: string[], now = new Date(), days = ACTIVITY_DAYS) {
   const buckets = new Map<string, { day: string; captions: number; votes: number }>();
   for (let offset = days - 1; offset >= 0; offset--) {
-    const day = nyDay(new Date(now.getTime() - offset * 86_400_000));
+    const date = new Date(`${nyDay(now)}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - offset);
+    const day = date.toISOString().slice(0, 10);
     buckets.set(day, { day, captions: 0, votes: 0 });
   }
   for (const at of captions) { const bucket = buckets.get(nyDay(at)); if (bucket) bucket.captions++; }
@@ -51,9 +60,8 @@ export function bucketByDay(captions: string[], votes: string[], now = new Date(
   return [...buckets.values()];
 }
 
-export async function loadStats(db: PrivilegedClient, now = new Date()) {
-  const since = new Date(now.getTime() - (ACTIVITY_DAYS + 1) * 86_400_000).toISOString();
-  const [people, profiles, captions, votes, funny, notFunny, student, professor, images, recentCaptionTimes, recentVoteTimes, latestCaptions, latestVotes] = await Promise.all([
+export async function loadStats(db: PrivilegedClient) {
+  const [people, profiles, captions, votes, funny, notFunny, student, professor, images, activity, latestCaptions, latestVotes] = await Promise.all([
     loadPeople(db),
     count(db.from("profiles").select("id", { count: "exact", head: true })),
     count(db.from("ai_captions").select("id", { count: "exact", head: true })),
@@ -62,16 +70,15 @@ export async function loadStats(db: PrivilegedClient, now = new Date()) {
     count(db.from("caption_votes").select("id", { count: "exact", head: true }).eq("vote", -1)),
     count(db.from("ai_captions").select("id", { count: "exact", head: true }).eq("perspective", "student")),
     count(db.from("ai_captions").select("id", { count: "exact", head: true }).eq("perspective", "professor")),
-    db.from("ai_captions").select("source_image_path").limit(10_000),
-    db.from("ai_captions").select("created_at").gte("created_at", since).limit(10_000),
-    db.from("caption_votes").select("created_at").gte("created_at", since).limit(10_000),
+    allRows(db, "ai_captions", "source_image_path"),
+    loadActivity(db, 14),
     db.from("ai_captions").select("id, caption, perspective, creator_id, created_at").order("created_at", { ascending: false }).limit(5),
     db.from("caption_votes").select("id, vote, user_id, created_at, ai_captions(caption)").order("created_at", { ascending: false }).limit(5),
   ]);
-  for (const result of [images, recentCaptionTimes, recentVoteTimes, latestCaptions, latestVotes]) {
+  for (const result of [latestCaptions, latestVotes]) {
     if (result.error) throw new Error("Failed to load statistics");
   }
-  const imageRows = (images.data ?? []) as { source_image_path: string }[];
+  const imageRows = images as { source_image_path: string }[];
   const creators = new Set(((latestCaptions.data ?? []) as { creator_id: string }[]).map((row) => row.creator_id));
   return {
     users: people.size,
@@ -83,11 +90,7 @@ export async function loadStats(db: PrivilegedClient, now = new Date()) {
     notFunny,
     student,
     professor,
-    activity: bucketByDay(
-      ((recentCaptionTimes.data ?? []) as { created_at: string }[]).map((row) => row.created_at),
-      ((recentVoteTimes.data ?? []) as { created_at: string }[]).map((row) => row.created_at),
-      now,
-    ),
+    activity,
     latestCaptions: ((latestCaptions.data ?? []) as { id: string; caption: string; perspective: string; creator_id: string; created_at: string }[])
       .map((row) => ({ ...row, creator: people.get(row.creator_id) ?? null })),
     latestVotes: ((latestVotes.data ?? []) as unknown as { id: string; vote: number; user_id: string; created_at: string; ai_captions: { caption: string } | null }[])
@@ -147,6 +150,7 @@ export type MediaRow = {
   perspective: string;
   model: string;
   generation_prompt: string;
+  generation_request_id: string | null;
   user_context: string | null;
   creator_id: string;
   created_at: string;
@@ -165,7 +169,7 @@ async function signImages(db: PrivilegedClient, paths: string[]) {
 export async function loadMedia(db: PrivilegedClient, { query = "", page = 1 } = {}) {
   let request = db
     .from("ai_captions")
-    .select("id, batch_id, caption, source_image_path, image_alt, tone, perspective, model, generation_prompt, user_context, creator_id, created_at", { count: "exact" })
+    .select("id, batch_id, caption, source_image_path, image_alt, tone, perspective, model, generation_prompt, generation_request_id, user_context, creator_id, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
     .order("id", { ascending: true });
   const needle = query.trim().replace(/[%_,()\\]/g, " ").trim();

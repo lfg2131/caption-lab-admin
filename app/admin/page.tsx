@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { loadStats } from "@/lib/data";
 import { PerspectiveBadge } from "@/app/components/caption-badges";
-import { DailyBarChart } from "./bar-chart";
+import { ActivityCharts } from "./activity-charts";
 import { formatDateTime, personLabel } from "./format";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -72,10 +72,7 @@ export default async function OverviewPage() {
         ) : <p className="text-sm text-muted">No votes yet.</p>}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <DailyBarChart title="Captions generated per day" unit="captions" points={stats.activity.map((day) => ({ day: day.day, value: day.captions }))} />
-        <DailyBarChart title="Votes cast per day" unit="votes" points={stats.activity.map((day) => ({ day: day.day, value: day.votes }))} />
-      </div>
+      <ActivityCharts initial={stats.activity} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="card p-5" aria-labelledby="recent-captions">

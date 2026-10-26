@@ -42,12 +42,14 @@ export function privilegedClient(respond = () => ({ data: null, error: null }), 
   return {
     calls,
     client: {
+      rpc: async (name,args) => { calls.push(["rpc",name,args]); if(name==="caption_lab_activity") return {data:Array.from({length:args.p_days},(_,i)=>({day:`2026-10-${String(i+1).padStart(2,"0")}`,captions:0,votes:0})),error:null}; return respond(name,[["rpc",args]]); },
       from: (table) => { calls.push([table, "from"]); return builder(table); },
       auth: { admin: { listUsers: async () => { calls.push(["auth", "listUsers"]); return { data: { users }, error: null }; } } },
       storage: {
         from: (bucket) => ({
           download: async (path) => { calls.push(["storage", "download", bucket, path]); return download; },
           remove: async (paths) => { calls.push(["storage", "remove", bucket, paths]); return { data: [], error: null }; },
+          createSignedUrl: async (path) => ({data:{signedUrl:`https://signed.example/${path}`},error:null}),
           createSignedUrls: async (paths) => { calls.push(["storage", "signMany", bucket, paths]); return { data: paths.map((path) => ({ path, signedUrl: `https://signed.example/${path}`, error: null })), error: null }; },
         }),
       },

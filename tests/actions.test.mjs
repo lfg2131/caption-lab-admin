@@ -19,6 +19,7 @@ function load({ who = "admin", respond = () => ({ data: null, error: null }), fe
   const geminiRequests = [];
   const actions = loadModule("app/admin/media/actions.ts", {
     "server-only": {},
+    "@/lib/captions/runtime": { beginGeneration: async (_db,_user,_app,image,options) => ({ id:"test-request",prompt:loadModule("lib/captions/prompt.ts").buildCaptionPrompt(options,image),onAttempt:async()=>{},finish:async()=>{} }) },
     "./supabase/server": { createClient: async () => session.client },
     "./supabase/privileged": { createPrivilegedClient: () => db.client },
     "next/navigation": { redirect: (path) => { throw new Error(`REDIRECT:${path}`); } },
@@ -90,7 +91,7 @@ test("createAiCaption never saves an over-long caption: bounded retry, then clea
   assert.match(result.message, /10 words/);
   assert.equal(t.geminiRequests.length, 2, "one retry, then give up");
   assert.ok(!t.db.calls.some((c) => c[1] === "insert"));
-  assert.ok(t.db.calls.some((c) => c[0] === "storage" && c[1] === "remove"));
+  assert.ok(!t.db.calls.some((c) => c[0] === "storage" && c[1] === "remove"));
 });
 
 test("createAiCaption only accepts the admin's own upload path", async () => {
@@ -142,6 +143,8 @@ function deleteScenario(remainingUses) {
       const ops0 = ops.map(([op]) => op);
       if (table === "ai_captions" && ops0.includes("delete")) return { data: [{ id: CAPTION }], error: null };
       if (table === "ai_captions" && ops0.includes("maybeSingle")) return { data: { id: CAPTION, source_image_path: PATH }, error: null };
+      if (table === "caption_lab_images") return { data:{id:CAPTION},error:null };
+      if (table === "caption_lab_reserve_image_delete") return {data:PATH,error:null};
       if (table === "caption_votes") return { count: 3, error: null };
       if (table === "ai_captions") return { count: remainingUses, error: null };
       return { data: null, error: null };

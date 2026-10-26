@@ -19,7 +19,7 @@ import {
   validateCaptionText,
   validateImageFile,
 } from "@/lib/captions/validation";
-import { buildCaptionPrompt } from "@/lib/captions/prompt";
+import { beginGeneration } from "@/lib/captions/runtime";
 import { GenerationError, generateCaptions, getGeminiConfig } from "@/lib/captions/gemini";
 
 // Every action starts with assertAdmin(): a verified Google session AND
@@ -74,13 +74,20 @@ export async function createAiCaption(input: unknown): Promise<ActionState> {
     return { status: "error", message: "That file isn’t a supported photo under 5 MB (JPEG, PNG, or WebP)." };
   }
 
-  const prompt = buildCaptionPrompt(options, { path, mimeType: sniffed, bytes: bytes.byteLength });
+  let execution: Awaited<ReturnType<typeof beginGeneration>> | undefined;
+  let registering = false;
   let generated: Awaited<ReturnType<typeof generateCaptions>>;
   try {
     // Same validation as the main app: at most 10 words, bounded retry.
-    generated = await generateCaptions({ prompt, image: bytes, mimeType: sniffed }, getGeminiConfig());
+    const config = getGeminiConfig();
+    registering = true;
+    execution = await beginGeneration(db, user.id, "admin", { path, mimeType: sniffed, bytes: bytes.byteLength }, options, config.model);
+    generated = await generateCaptions({ prompt: execution.prompt, image: bytes, mimeType: sniffed }, { ...config, onAttempt: execution.onAttempt });
   } catch (error) {
-    await cleanup();
+    if (execution) {
+      try { await execution.finish([], error instanceof GenerationError ? error.code : "unexpected"); }
+      catch { return { status: "error", message: "Generation failed and its outcome could not be recorded. Try again later." }; }
+    } else if (!registering) { await cleanup(); }
     return { status: "error", message: error instanceof GenerationError ? error.userMessage : "Caption generation failed. Try again." };
   }
 
@@ -91,7 +98,7 @@ export async function createAiCaption(input: unknown): Promise<ActionState> {
       creator_id: user.id,
       source_image_path: path,
       caption,
-      generation_prompt: prompt.persisted,
+      generation_prompt: execution.prompt.persisted,
       user_context: options.context,
       tone: options.tone,
       perspective: options.perspective,
@@ -100,9 +107,12 @@ export async function createAiCaption(input: unknown): Promise<ActionState> {
     })))
     .select("id, caption");
   if (insertError || rows?.length !== CAPTION_COUNT) {
-    await cleanup();
+    try { await execution.finish([], "caption_save_failed"); } catch { /* User sees a save error below; no success claimed. */ }
     return { status: "error", message: "The caption was written but couldn’t be saved. Nothing was created." };
   }
+  try { await execution.finish(rows.map((row) => row.id)); }
+  catch { return { status: "error", message: "Captions were saved, but their telemetry link failed. Refresh before trying again." }; }
+
   refresh();
   return { status: "ok", message: `Created: “${rows[0].caption}”`, id: rows[0].id };
 }
@@ -158,8 +168,20 @@ export async function deleteCaption(_prev: ActionState, form: FormData): Promise
     .eq("source_image_path", row.source_image_path);
   let photo = "kept";
   if (!usageError && remaining === 0) {
-    const { error: removeError } = await db.storage.from(MEDIA_BUCKET).remove([row.source_image_path]);
-    photo = removeError ? "unknown" : "removed";
+    const { data: image } = await db.from("caption_lab_images").select("id").eq("storage_path", row.source_image_path).maybeSingle();
+    if (image) {
+      const { data: reserved, error: reserveError } = await db.rpc("caption_lab_reserve_image_delete", { p_id: image.id });
+      if (!reserveError && reserved) {
+        const { error: removeError } = await db.storage.from(MEDIA_BUCKET).remove([row.source_image_path]);
+        if (removeError) {
+          await db.from("caption_lab_images").update({ state: "available" }).eq("id", image.id);
+          photo = "unknown";
+        } else {
+          const { error: registryError } = await db.from("caption_lab_images").delete().eq("id", image.id);
+          photo = registryError ? "unknown" : "removed";
+        }
+      }
+    }
   }
   refresh();
   // The deleted row's card unmounts, so the outcome is shown at page level.

@@ -66,3 +66,5 @@ npm test             # unit tests (Supabase + Gemini mocked)
 npm run lint && npm run build
 npm start & npm run test:smoke   # live signed-out checks against :3001
 ```
+
+Current submission: [Week 7 capability mapping and verification](WEEK7.md).

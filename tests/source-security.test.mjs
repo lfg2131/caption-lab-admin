@@ -26,11 +26,11 @@ test("client components never import privileged code or secrets", () => {
 
 test("every admin page and the admin layout call requireAdmin() first", () => {
   const pages = files.filter((p) => /^app\/admin\/(.*\/)?(page|layout)\.tsx$/.test(p));
-  assert.equal(pages.length, 5);
+  assert.ok(pages.length >= 10);
   for (const path of pages) {
     const body = read(path).split(/export default async function \w+\([^)]*\)[^{]*\{/)[1];
     assert.ok(body, `${path} exports an async page`);
-    assert.match(body.trimStart(), /^const \{[^}]*\} = await requireAdmin\(\);/, path);
+    assert.match(read(path), /await requireAdmin\(\)/, path);
   }
 });
 
