@@ -12,7 +12,7 @@ assert.ifError(membershipError);assert.ok(membership?.user_id);
 // The authentication gate has independent denial tests. Here a known existing
 // superadmin context exercises real server validation and real Supabase writes.
 class AdminAccessError extends Error{}
-const stubs={'server-only':{},'@/lib/auth':{assertAdmin:async()=>({status:'admin',db,user:{id:membership.user_id,email:null}}),AdminAccessError},'next/cache':{revalidatePath(){}}};
+const stubs={'server-only':{},'@/lib/auth':{assertAdmin:async()=>({status:'admin',db,user:{id:membership.user_id,email:null}}),AdminAccessError},'./server':{createClient:async()=>{throw new Error('No browser session in this action integration test');}},'next/cache':{revalidatePath(){}}};
 const catalog=loadModule('app/admin/catalog-actions.ts',stubs);
 const images=loadModule('app/admin/images/actions.ts',stubs);
 const mixActions=loadModule('app/admin/mix/actions.ts',stubs);

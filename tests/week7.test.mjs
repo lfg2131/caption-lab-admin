@@ -8,7 +8,7 @@ const form=values=>{const f=new FormData();for(const [k,v] of Object.entries(val
 function actions(file,who='admin',respond=()=>({data:{id:ID},error:null})){
  const session=sessionClient({user:who==='anonymous'?null:{id:who==='admin'?ADMIN:USER}});
  const db=privilegedClient(adminLookup(who==='admin',respond));
- const stubs={'server-only':{},'./supabase/server':{createClient:async()=>session.client},'./supabase/privileged':{createPrivilegedClient:()=>db.client},'next/navigation':{redirect:path=>{throw new Error('REDIRECT:'+path);}},'next/cache':{revalidatePath(){}}};
+ const stubs={'server-only':{},'./supabase/server':{createClient:async()=>session.client},'./server':{createClient:async()=>session.client},'./supabase/privileged':{createPrivilegedClient:()=>db.client},'next/navigation':{redirect:path=>{throw new Error('REDIRECT:'+path);}},'next/cache':{revalidatePath(){}}};
  return {module:loadModule(file,stubs),calls:db.calls,db};
 }
 const inputs={

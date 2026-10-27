@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { AdminAccessError, assertAdmin } from "@/lib/auth";
+import { discardUnregisteredUpload } from "@/lib/supabase/uploads";
 import {
   CAPTION_COUNT,
   MAX_IMAGE_BYTES,
@@ -58,7 +59,7 @@ export async function createAiCaption(input: unknown): Promise<ActionState> {
   const { path, context, tone, perspective } = (input ?? {}) as Record<string, unknown>;
   // Only the admin's own fresh upload (the DB also requires folder = creator).
   if (!isOwnedImagePath(path, user.id)) return { status: "error", message: "That upload couldn’t be found. Add the photo again." };
-  const cleanup = () => db.storage.from(MEDIA_BUCKET).remove([path]).catch(() => undefined);
+  const cleanup = () => discardUnregisteredUpload(path);
 
   const options = parseGenerationOptions(context, tone, perspective);
   if ("error" in options) {

@@ -21,6 +21,7 @@ function load({ who = "admin", respond = () => ({ data: null, error: null }), fe
     "server-only": {},
     "@/lib/captions/runtime": { beginGeneration: async (_db,_user,_app,image,options) => ({ id:"test-request",prompt:loadModule("lib/captions/prompt.ts").buildCaptionPrompt(options,image),onAttempt:async()=>{},finish:async()=>{} }) },
     "./supabase/server": { createClient: async () => session.client },
+    "./server": { createClient: async () => session.client },
     "./supabase/privileged": { createPrivilegedClient: () => db.client },
     "next/navigation": { redirect: (path) => { throw new Error(`REDIRECT:${path}`); } },
     "next/cache": { revalidatePath: (path) => revalidated.push(path) },

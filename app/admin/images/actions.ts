@@ -1,6 +1,7 @@
 "use server";
 import {revalidatePath} from "next/cache";
 import {assertAdmin,AdminAccessError} from "@/lib/auth";
+import {discardUnregisteredUpload} from "@/lib/supabase/uploads";
 import {MAX_IMAGE_BYTES,MEDIA_BUCKET,isOwnedImagePath,isUuid,sniffImageType,extensionMimeType} from "@/lib/captions/validation";
 import type {CatalogState} from "../catalog-actions";
 const failed=(error:unknown):CatalogState=>({status:"error",message:error instanceof AdminAccessError?error.message:"Could not verify access."});
@@ -17,8 +18,8 @@ export async function registerImage(input:unknown):Promise<CatalogState> {
  if(error||!blob)return {status:"error",message:"The uploaded file could not be read. Retry registering the same upload."};
  const bytes=new Uint8Array(await blob.arrayBuffer());const mime=sniffImageType(bytes);
  if(!mime||mime!==extensionMimeType(path)||!bytes.length||bytes.length>MAX_IMAGE_BYTES){
-  const removed=await admin.db.storage.from(MEDIA_BUCKET).remove([path]);
-  return {status:"error",message:removed.error?"Unsupported file. Storage cleanup failed; contact the administrator.":"Use a real JPEG, PNG or WebP under 5 MB. Invalid upload removed."};
+  const removed=await discardUnregisteredUpload(path);
+  return {status:"error",message:removed?"Use a real JPEG, PNG or WebP under 5 MB. Invalid upload removed.":"Unsupported file. Cleanup could not be confirmed; refresh Images before retrying."};
  }
  const {error:saveError}=await admin.db.from("caption_lab_images").insert({storage_path:path,owner_id:admin.user.id,title:title.trim(),alt_text:alt_text.trim(),mime_type:mime,size_bytes:bytes.length});
  if(saveError)return {status:"error",message:saveError.code==="23505"?"This upload is already registered. Refresh Images.":"The file uploaded, but metadata did not save. Retry registering this same upload."};
